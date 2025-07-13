@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>French Link Stitch Hole Calculator</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    max-width: 720px;
+    margin: 30px auto;
+    padding: 1em;
+    background: #fdfdfd;
+    border: 1px solid #ccc;
+    border-radius: 10px;
+  }
+  label {
+    display: block;
+    margin: 12px 0 4px;
+    font-weight: bold;
+  }
+  input[type=number] {
+    width: 100%;
+    padding: 8px;
+    font-size: 1em;
+    box-sizing: border-box;
+  }
+  button {
+    margin-top: 15px;
+    padding: 10px 18px;
+    font-size: 1.1em;
+    cursor: pointer;
+  }
+  .results {
+    margin-top: 25px;
+    background: #eee;
+    padding: 15px;
+    border-radius: 6px;
+    font-family: monospace;
+    white-space: pre-wrap;
+  }
+  .error {
+    color: red;
+    font-weight: bold;
+  }
+  #visualGuide {
+    margin-top: 30px;
+    border: 2px solid #666;
+    background: linear-gradient(to bottom, #ffffff, #f2f2f2);
+    position: relative;
+    width: 8px;
+    height: 600px;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+  }
+  .spineLine {
+    position: absolute;
+    left: 50%;
+    width: 1px;
+    background: #000;
+    top: 0;
+    bottom: 0;
+    transform: translateX(-0.5px);
+  }
+  .hole {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    border-radius: 50%;
+    box-sizing: border-box;
+  }
+  .hole.kettle {
+    width: 22px;
+    height: 22px;
+    background: #FF6666;
+    border: 2px solid #fff;
+    box-shadow: 0 0 3px #ff9999;
+    margin-top: -11px;
+  }
+  .hole.link {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #fff;
+    margin-top: -8px;
+  }
+  .holeLabel {
+    position: absolute;
+    left: 24px;
+    font-size: 13px;
+    color: #333;
+    white-space: nowrap;
+    pointer-events: none;
+    font-family: "Georgia", serif;
+  }
+  #downloadBtn {
+    margin-top: 15px;
+    padding: 10px 18px;
+    font-size: 1.1em;
+    cursor: pointer;
+    background-color: #000;
+    border: none;
+    color: white;
+    border-radius: 5px;
+  }
+  #warningMessage {
+    color: darkorange;
+    font-size: 0.9em;
+    margin-top: 8px;
+  }
+  #printOptionsWrapper {
+    display: none !important;
+  }
+</style>
+</head>
+<body>
+
+<h1>French Link Stitch Hole Calculator</h1>
+
+<label for="spineLength">Spine length (mm):</label>
+<input type="number" id="spineLength" min="10" step="0.1" value="210" />
+
+<label for="linkPairs">Number of French link stitch pairs:</label>
+<input type="number" id="linkPairs" min="1" step="1" value="3" />
+
+<label for="minStart">Minimum kettle stitch distance from edge (mm):</label>
+<input type="number" id="minStart" min="1" step="0.1" value="20" />
+
+<button onclick="calculateAndDraw()">Calculate & Draw</button>
+<button id="downloadBtn" onclick="downloadPDF()" style="display:none;">Download Printable Template</button>
+
+<div id="warningMessage"></div>
+
+<div class="results" id="results"></div>
+
+<div id="visualGuide">
+  <div class="spineLine"></div>
+</div>
+
+<div style="text-align:center; font-size: 0.9em; margin-top: 8px; font-family: Georgia, serif;">
+  <span style="color:#FF6666; font-size: 1.2em;">●</span> Kettle stitch &nbsp;&nbsp;
+  <span style="color:#3399FF; font-size: 1.2em;">●</span> Link stitches (each pair has unique colour)
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+const pairColors = ['#3399FF', '#33CC99', '#FF9933', '#CC66CC', '#66CCCC', '#FF6666'];
+
+let holes = [];
+let spineLengthGlobal = 0;
+
+function updatePrintOptions() {
+  const spineLengthInput = document.getElementById('spineLength');
+  const spineLength = parseFloat(spineLengthInput.value);
+  const downloadBtn = document.getElementById('downloadBtn');
+  const warningMessage = document.getElementById('warningMessage');
+
+  if (isNaN(spineLength) || spineLength <= 0) {
+    downloadBtn.style.display = 'none';
+    warningMessage.textContent = '';
+    return;
+  }
+
+  const A4_PORTRAIT_USABLE = 237;
+  const A4_LANDSCAPE_USABLE = 150;
+
+  if (spineLength <= A4_PORTRAIT_USABLE) {
+    downloadBtn.style.display = 'inline-block';
+    warningMessage.textContent = '';
+  } else {
+    downloadBtn.style.display = 'none';
+    warningMessage.textContent = '⚠️ Spine too long for single-page A4 printable guides. Visual preview and measurements still available.';
+  }
+}
+
+function calculateAndDraw() {
+  const resultsDiv = document.getElementById('results');
+  const visualGuide = document.getElementById('visualGuide');
+  const downloadBtn = document.getElementById('downloadBtn');
+  resultsDiv.innerHTML = '';
+  downloadBtn.style.display = 'none';
+  visualGuide.querySelectorAll('.hole, .holeLabel').forEach(h => h.remove());
+
+  const spineLength = parseFloat(document.getElementById('spineLength').value);
+  const linkPairs = parseInt(document.getElementById('linkPairs').value);
+  const minStart = parseFloat(document.getElementById('minStart').value);
+
+  if (
+    isNaN(spineLength) || isNaN(linkPairs) || isNaN(minStart) ||
+    spineLength <= 0 || linkPairs < 1 || minStart <= 0
+  ) {
+    resultsDiv.innerHTML = '<p class="error">Please enter valid positive numbers.</p>';
+    return;
+  }
+
+  const totalHoles = 2 + linkPairs * 2;
+  const usableLength = spineLength - 2 * minStart;
+  if (usableLength <= 0) {
+    resultsDiv.innerHTML = '<p class="error">Spine too short for these settings.</p>';
+    return;
+  }
+
+  const spacing = usableLength / (totalHoles - 1);
+  holes = Array.from({ length: totalHoles }, (_, i) => Math.round(minStart + i * spacing));
+  spineLengthGlobal = spineLength; // update global for PDF
+
+  let outputText = 'Hole positions (mm from top edge):\n\n';
+holes.forEach((pos, i) => {
+  const label = i === 0 ? 'K (top)' :
+                i === holes.length - 1 ? 'K (bottom)' :
+                `Link ${Math.ceil(i / 2)}.${i % 2 === 1 ? 1 : 2}`;
+  outputText += `${label}: ${Math.round(pos)} mm\n`;
+});
+resultsDiv.textContent = outputText;
+
+  const guideHeight = visualGuide.clientHeight;
+  const padding = 20;
+  const scale = (guideHeight - padding * 2) / spineLength;
+
+  for (let i = 0; i < holes.length; i++) {
+    const y = padding + holes[i] * scale;
+    const isKettle = i === 0 || i === holes.length - 1;
+
+    const holeDiv = document.createElement('div');
+    holeDiv.className = `hole ${isKettle ? 'kettle' : 'link'}`;
+    holeDiv.style.top = `${y}px`;
+    if (!isKettle) {
+      const pairIndex = Math.floor((i - 1) / 2);
+      const color = pairColors[pairIndex % pairColors.length];
+      holeDiv.style.backgroundColor = color;
+      holeDiv.style.boxShadow = `0 0 2px ${color}`;
+    }
+    visualGuide.appendChild(holeDiv);
+  }
+
+ // Remove any existing hole labels first to avoid duplicates
+visualGuide.querySelectorAll('.holeLabel').forEach(h => h.remove());
+
+// Add kettle stitch labels (top and bottom)
+const topLabel = document.createElement('div');
+topLabel.className = 'holeLabel';
+topLabel.style.top = `${padding + holes[0] * scale - 6}px`;
+topLabel.style.left = '24px';
+topLabel.textContent = 'K (top)';
+visualGuide.appendChild(topLabel);
+
+const bottomLabel = document.createElement('div');
+bottomLabel.className = 'holeLabel';
+bottomLabel.style.top = `${padding + holes[holes.length - 1] * scale - 6}px`;
+bottomLabel.style.left = '24px';
+bottomLabel.textContent = 'K (bottom)';
+visualGuide.appendChild(bottomLabel);
+
+// Add labels next to each individual link hole dot
+holes.forEach((pos, i) => {
+  if (i === 0 || i === holes.length - 1) return; // skip kettle holes
+
+  const label = document.createElement('div');
+  label.className = 'holeLabel';
+  const y = padding + pos * scale - 8;  // vertical offset for neatness
+  label.style.top = `${y}px`;
+  label.style.left = '24px'; // right side of the spine
+
+  const pairIndex = Math.floor((i - 1) / 2);
+  const pairNumber = pairIndex + 1;
+  const partNumber = (i % 2 === 1) ? 1 : 2;
+  label.textContent = `Link ${pairNumber}.${partNumber}`;
+  label.style.color = pairColors[pairIndex % pairColors.length];
+
+  visualGuide.appendChild(label);
+});
+
+
+  // Show download button if printable
+  const A4_PORTRAIT_USABLE = 237;
+  if (spineLength <= A4_PORTRAIT_USABLE) {
+    downloadBtn.style.display = 'inline-block';
+  } else {
+    downloadBtn.style.display = 'none';
+  }
+}
+
+function downloadPDF() {
+  if (!holes || holes.length === 0) {
+    alert('Please calculate holes first!');
+    return;
+  }
+
+  const { jsPDF } = window.jspdf;
+
+  const A4_PORTRAIT_USABLE = 237;
+  const A4_LANDSCAPE_USABLE = 150;
+
+  let orientation = '';
+  if (spineLengthGlobal <= A4_LANDSCAPE_USABLE) {
+    orientation = 'landscape';
+  } else if (spineLengthGlobal <= A4_PORTRAIT_USABLE) {
+    orientation = 'portrait';
+  } else {
+    alert('Spine too long for single-page A4 printout.');
+    return;
+  }
+
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: orientation });
+  drawSpine(pdf, orientation);
+}
+
+function drawSpine(pdf, orientation) {
+  const MARGIN_TOP_BOTTOM = 30; // mm margins top and bottom
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  if (orientation === 'landscape') {
+    // Corrected: Spine centered horizontally on page width (long edge)
+    const usableHeight = pageWidth - MARGIN_TOP_BOTTOM * 2;
+    let scaleFactor = 1;
+    if (spineLengthGlobal > usableHeight) {
+      scaleFactor = usableHeight / spineLengthGlobal;
+    }
+
+    const spineX = pageWidth / 2;  // <-- Fixed this line
+    const spineStartY = MARGIN_TOP_BOTTOM;
+    const spineEndY = MARGIN_TOP_BOTTOM + spineLengthGlobal * scaleFactor;
+
+    pdf.setDrawColor(200);
+    pdf.setLineWidth(0.3);
+    pdf.line(spineX, spineStartY, spineX, spineEndY);
+
+    const tLength = 5;
+    pdf.setDrawColor(0);
+    pdf.setLineWidth(0.4);
+    pdf.line(spineX - tLength, spineStartY, spineX + tLength, spineStartY);
+    pdf.line(spineX - tLength, spineEndY, spineX + tLength, spineEndY);
+
+    holes.forEach((pos, index) => {
+      const y = spineStartY + pos * scaleFactor;
+      const r = (index === 0 || index === holes.length - 1) ? 0.9 : 0.6;
+
+      pdf.setDrawColor(255);
+      pdf.circle(spineX, y, r + 0.2, 'S');
+      pdf.setDrawColor(0);
+      pdf.setFillColor(0);
+      pdf.circle(spineX, y, r, 'F');
+
+      let label = '';
+      if (index === 0) label = 'K (top)';
+      else if (index === holes.length - 1) label = 'K (bottom)';
+      else {
+        const pair = Math.ceil(index / 2);
+        const part = (index % 2 === 1) ? 1 : 2;
+        label = `${pair}.${part}`;
+      }
+      pdf.setFontSize(10);
+      pdf.text(label, spineX + 10, y + 3);
+    });
+
+    // Add measurement summary
+    pdf.setFontSize(11);
+    pdf.setTextColor(0);
+    pdf.text('Print at 100% scale. Fold along the centre spine line.', 20, 20);
+
+    let offsetY = 28;
+
+// Add small heading
+pdf.setFontSize(8);
+pdf.setTextColor(100); // subtle grey
+pdf.text('Hole positions (mm from top edge):', 20, offsetY);
+offsetY += 5;
+
+    pdf.setFontSize(9);
+    holes.forEach((pos, index) => {
+      const label = index === 0 ? 'K (top)' :
+                    index === holes.length - 1 ? 'K (bottom)' :
+                    `Link ${Math.ceil(index / 2)}.${index % 2 === 1 ? 1 : 2}`;
+      pdf.text(`${label}: ${Math.round(pos)} mm`, 20, offsetY);
+      offsetY += 5;
+    });
+  } else {
+    // Portrait mode: vertical spine
+    const usableHeight = pageHeight - MARGIN_TOP_BOTTOM * 2;
+    let scaleFactor = 1;
+    if (spineLengthGlobal > usableHeight) {
+      scaleFactor = usableHeight / spineLengthGlobal;
+    }
+
+    const spineX = pageWidth / 2;
+    const spineStartY = MARGIN_TOP_BOTTOM;
+    const spineEndY = MARGIN_TOP_BOTTOM + spineLengthGlobal * scaleFactor;
+
+    pdf.setDrawColor(200);
+    pdf.setLineWidth(0.3);
+    pdf.line(spineX, spineStartY, spineX, spineEndY);
+
+    const tLength = 5;
+    pdf.setDrawColor(0);
+    pdf.setLineWidth(0.4);
+    pdf.line(spineX - tLength, spineStartY, spineX + tLength, spineStartY);
+    pdf.line(spineX - tLength, spineEndY, spineX + tLength, spineEndY);
+
+    holes.forEach((pos, index) => {
+      const y = spineStartY + pos * scaleFactor;
+      const r = (index === 0 || index === holes.length - 1) ? 0.9 : 0.6;
+
+      pdf.setDrawColor(255);
+      pdf.circle(spineX, y, r + 0.2, 'S');
+      pdf.setDrawColor(0);
+      pdf.setFillColor(0);
+      pdf.circle(spineX, y, r, 'F');
+
+      let label = '';
+      if (index === 0) label = 'K (top)';
+      else if (index === holes.length - 1) label = 'K (bottom)';
+      else {
+        const pair = Math.ceil(index / 2);
+        const part = (index % 2 === 1) ? 1 : 2;
+        label = `${pair}.${part}`;
+      }
+      pdf.setFontSize(10);
+      pdf.text(label, spineX + 10, y + 3);
+    });
+
+    // Add measurement summary
+    pdf.setFontSize(11);
+    pdf.setTextColor(0);
+    pdf.text('Print at 100% scale. Fold along the center spine line.', 20, 20);
+
+    let offsetY = 28;
+
+// Add small heading
+pdf.setFontSize(8);
+pdf.setTextColor(100); // subtle grey
+pdf.text('Hole positions (mm from top edge):', 20, offsetY);
+offsetY += 5;
+
+    pdf.setFontSize(9);
+    holes.forEach((pos, index) => {
+      const label = index === 0 ? 'K (top)' :
+                    index === holes.length - 1 ? 'K (bottom)' :
+                    `Link ${Math.ceil(index / 2)}.${index % 2 === 1 ? 1 : 2}`;
+      pdf.text(`${label}: ${Math.round(pos)} mm`, 20, offsetY);
+      offsetY += 5;
+    });
+  }
+
+  pdf.save(`french_link_stitch_template_${orientation}.pdf`);
+}
+
+document.getElementById('spineLength').addEventListener('input', updatePrintOptions);
+
+updatePrintOptions();
+</script>
+
+</body>
+</html>
