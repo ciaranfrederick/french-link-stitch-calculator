@@ -111,36 +111,117 @@
   #printOptionsWrapper {
     display: none !important;
   }
+  .link-adjust-buttons {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  .adjust-warning {
+    font-size: 0.85em;
+    color: #B22222;
+    margin-top: 6px;
+  }
 </style>
 </head>
 <body>
 
 <h1>French Link Stitch Hole Calculator</h1>
 
-<label for="spineLength">Spine length (mm):</label>
-<input type="number" id="spineLength" min="10" step="0.1" value="210" />
+<!-- Step 1: Spine & Spacing -->
+<div class="section">
+  <h2>1. Enter Spine & Spacing Details</h2>
 
-<label for="linkPairs">Number of French link stitch pairs:</label>
-<input type="number" id="linkPairs" min="1" step="1" value="3" />
+  <label for="spineLength">Spine length (mm):</label>
+  <input type="number" id="spineLength" min="10" step="0.1" value="210" />
 
-<label for="minStart">Minimum kettle stitch distance from edge (mm):</label>
-<input type="number" id="minStart" min="1" step="0.1" value="20" />
+  <label for="minStart">Kettle stitch distance from edge (mm):</label>
+  <input type="number" id="minStart" min="1" step="0.1" value="20" />
 
-<button onclick="calculateAndDraw()">Calculate & Draw</button>
-<button id="downloadBtn" onclick="downloadPDF()" style="display:none;">Download Printable Template</button>
+<fieldset style="margin-top: 12px;">
+  <legend><strong>Link Spacing Method:</strong></legend>
 
-<div id="warningMessage"></div>
+  <label>
+    <input type="radio" name="spacingMode" value="default" checked onchange="updateSpacingInputs()" />
+    Default (20mm)
+  </label>
+  <small style="display:block; margin-left:20px; color:#555;">
+    Standard 20mm spacing per link stitch (from hole to hole).
+  </small>
 
+  <label>
+    <input type="radio" name="spacingMode" value="thread" onchange="updateSpacingInputs()" />
+    Ribbon/tape width + 2mm
+  </label>
+  <small style="display:block; margin-left:20px; color:#555;">
+    (Use when sewing over ribbon/tapes) Spacing based on your ribbon/tape thickness plus 2mm for comfort.
+  </small>
+
+  <label>
+    <input type="radio" name="spacingMode" value="custom" onchange="updateSpacingInputs()" />
+    Custom spacing
+  </label>
+  <small style="display:block; margin-left:20px; color:#555;">
+    Enter your own link length.
+  </small>
+</fieldset>
+
+
+<div id="threadSpacingOptions" style="display:none;">
+  <label for="threadWidth">Thread width (mm):</label>
+  <input type="number" id="threadWidth" min="5" step="0.1" value="1" />
+</div>
+
+<div id="customSpacingOptions" style="display:none;">
+  <label for="customSpacing">Custom link spacing (mm):</label>
+  <input type="number" id="customSpacing" min="5" step="0.1" value="20" />
+</div>
+</div>
+
+<!-- Step 2: Suggest Links -->
+
+<!-- Step 3: Confirm or Adjust Link Pairs -->
+<div class="section">
+  <h2>3. Confirm or Adjust Link Pairs</h2>
+  <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+    <strong>Estimated pairs:</strong>
+    <span id="estimatedPairsDisplay">4</span>
+    <strong>Adjustment:</strong>
+    <span id="pairAdjustmentDisplay">0</span>
+  </div>
+
+  <div style="margin-top: 10px; display: flex; gap: 10px;">
+    <button onclick="adjustpairCount(-1)">−</button>
+    <button onclick="adjustpairCount(1)">+</button>
+  </div>
+
+  <div style="margin-top: 10px; color: darkorange; font-size: 0.9em;">
+    ⚠️ Adjusting pairs may affect book strength.
+  </div>
+</div>
+
+
+<!-- Step 4: Calculate -->
+<div class="section">
+  <h2>4. Generate and Download</h2>
+  <button id="downloadBtn" onclick="downloadPDF()" style="display:none;">Download PDF Template</button>
+  <div id="warningMessage"></div>
+</div>
+
+<!-- Results -->
 <div class="results" id="results"></div>
 
+<!-- Visual Preview -->
 <div id="visualGuide">
   <div class="spineLine"></div>
 </div>
 
+<!-- Legend -->
 <div style="text-align:center; font-size: 0.9em; margin-top: 8px; font-family: Georgia, serif;">
   <span style="color:#FF6666; font-size: 1.2em;">●</span> Kettle stitch &nbsp;&nbsp;
-  <span style="color:#3399FF; font-size: 1.2em;">●</span> Link stitches (each pair has unique colour)
+  <span style="color:#3399FF; font-size: 1.2em;">●</span> Link stitches
 </div>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
@@ -149,6 +230,12 @@ const pairColors = ['#3399FF', '#33CC99', '#FF9933', '#CC66CC', '#66CCCC', '#FF6
 
 let holes = [];
 let spineLengthGlobal = 0;
+
+function updateSpacingInputs() {
+  const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
+  document.getElementById('threadSpacingOptions').style.display = spacingMode === 'thread' ? 'block' : 'none';
+  document.getElementById('customSpacingOptions').style.display = spacingMode === 'custom' ? 'block' : 'none';
+}
 
 function updatePrintOptions() {
   const spineLengthInput = document.getElementById('spineLength');
@@ -173,8 +260,9 @@ function updatePrintOptions() {
     warningMessage.textContent = '⚠️ Spine too long for single-page A4 printable guides. Visual preview and measurements still available.';
   }
 }
-
-function calculateAndDraw() {
+function calculateAndDraw(pairCountOverride = null) {
+const threadWidth = parseFloat(document.getElementById('threadWidth').value);
+const customGap = parseFloat(document.getElementById('customSpacing').value);
   const resultsDiv = document.getElementById('results');
   const visualGuide = document.getElementById('visualGuide');
   const downloadBtn = document.getElementById('downloadBtn');
@@ -183,37 +271,81 @@ function calculateAndDraw() {
   visualGuide.querySelectorAll('.hole, .holeLabel').forEach(h => h.remove());
 
   const spineLength = parseFloat(document.getElementById('spineLength').value);
-  const linkPairs = parseInt(document.getElementById('linkPairs').value);
   const minStart = parseFloat(document.getElementById('minStart').value);
+  const warningMessage = document.getElementById('warningMessage');
+  warningMessage.textContent = '';
 
-  if (
-    isNaN(spineLength) || isNaN(linkPairs) || isNaN(minStart) ||
-    spineLength <= 0 || linkPairs < 1 || minStart <= 0
-  ) {
-    resultsDiv.innerHTML = '<p class="error">Please enter valid positive numbers.</p>';
+  const pairCount = pairCountOverride !== null ? pairCountOverride : Math.max(1, estimatedPairs + linkAdjustment);
+
+if (
+  isNaN(spineLength) || isNaN(pairCount) || isNaN(minStart) ||
+  spineLength <= 0 || pairCount < 1 || minStart <= 0
+) {
+  warningMessage.textContent = 'Please enter valid positive numbers.';
+  return;
+}
+
+let linkGap = 20;
+const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
+
+if (spacingMode === 'thread') {
+  if (!isNaN(threadWidth) && threadWidth > 5) {
+    linkGap = threadWidth + 2;
+  } else {
+    warningMessage.textContent = "Please enter a valid thread width.";
     return;
   }
+} else if (spacingMode === 'custom') {
+  if (!isNaN(customGap) && customGap > 5) {
+    linkGap = customGap;
+  } else {
+    warningMessage.textContent = "Please enter a valid custom spacing.";
+    return;
+  }
+}
 
-  const totalHoles = 2 + linkPairs * 2;
   const usableLength = spineLength - 2 * minStart;
-  if (usableLength <= 0) {
-    resultsDiv.innerHTML = '<p class="error">Spine too short for these settings.</p>';
-    return;
+const totalLinkSpacing = pairCount * linkGap;
+const segmentsBetween = pairCount + 1;
+const interPairGap = (usableLength - totalLinkSpacing) / segmentsBetween;
+
+// New stricter check:
+if (interPairGap < linkGap) {
+  resultsDiv.innerHTML = `<p class="error">Spacing between stitch pairs (${interPairGap.toFixed(2)}mm) is smaller than the link stitch width (${linkGap}mm). Please reduce pairs or increase spine length.</p>`;
+  return;
+}
+
+
+  const holesList = [];
+  let pos = minStart;
+
+  holesList.push(Math.round(pos)); // Top kettle
+
+  pos += interPairGap;
+
+  for (let i = 0; i < pairCount; i++) {
+    holesList.push(Math.round(pos));         // Link x.1
+    pos += linkGap;
+    holesList.push(Math.round(pos));         // Link x.2
+    pos += interPairGap;
   }
 
-  const spacing = usableLength / (totalHoles - 1);
-  holes = Array.from({ length: totalHoles }, (_, i) => Math.round(minStart + i * spacing));
-  spineLengthGlobal = spineLength; // update global for PDF
+  holesList.push(Math.round(spineLength - minStart)); // Bottom kettle
 
+  holes = holesList;
+  spineLengthGlobal = spineLength;
+
+  // Output results
   let outputText = 'Hole positions (mm from top edge):\n\n';
-holes.forEach((pos, i) => {
-  const label = i === 0 ? 'K (top)' :
-                i === holes.length - 1 ? 'K (bottom)' :
-                `Link ${Math.ceil(i / 2)}.${i % 2 === 1 ? 1 : 2}`;
-  outputText += `${label}: ${Math.round(pos)} mm\n`;
-});
-resultsDiv.textContent = outputText;
+  holes.forEach((pos, i) => {
+    const label = i === 0 ? 'K (top)' :
+                  i === holes.length - 1 ? 'K (bottom)' :
+                  `Link ${Math.ceil(i / 2)}.${i % 2 === 1 ? 1 : 2}`;
+    outputText += `${label}: ${pos} mm\n`;
+  });
+  resultsDiv.textContent = outputText;
 
+  // Draw on visual preview
   const guideHeight = visualGuide.clientHeight;
   const padding = 20;
   const scale = (guideHeight - padding * 2) / spineLength;
@@ -234,43 +366,40 @@ resultsDiv.textContent = outputText;
     visualGuide.appendChild(holeDiv);
   }
 
- // Remove any existing hole labels first to avoid duplicates
-visualGuide.querySelectorAll('.holeLabel').forEach(h => h.remove());
+  // Add hole labels
+  visualGuide.querySelectorAll('.holeLabel').forEach(h => h.remove());
 
-// Add kettle stitch labels (top and bottom)
-const topLabel = document.createElement('div');
-topLabel.className = 'holeLabel';
-topLabel.style.top = `${padding + holes[0] * scale - 6}px`;
-topLabel.style.left = '24px';
-topLabel.textContent = 'K (top)';
-visualGuide.appendChild(topLabel);
+  const topLabel = document.createElement('div');
+  topLabel.className = 'holeLabel';
+  topLabel.style.top = `${padding + holes[0] * scale - 6}px`;
+  topLabel.style.left = '24px';
+  topLabel.textContent = 'K (top)';
+  visualGuide.appendChild(topLabel);
 
-const bottomLabel = document.createElement('div');
-bottomLabel.className = 'holeLabel';
-bottomLabel.style.top = `${padding + holes[holes.length - 1] * scale - 6}px`;
-bottomLabel.style.left = '24px';
-bottomLabel.textContent = 'K (bottom)';
-visualGuide.appendChild(bottomLabel);
+  const bottomLabel = document.createElement('div');
+  bottomLabel.className = 'holeLabel';
+  bottomLabel.style.top = `${padding + holes[holes.length - 1] * scale - 6}px`;
+  bottomLabel.style.left = '24px';
+  bottomLabel.textContent = 'K (bottom)';
+  visualGuide.appendChild(bottomLabel);
 
-// Add labels next to each individual link hole dot
-holes.forEach((pos, i) => {
-  if (i === 0 || i === holes.length - 1) return; // skip kettle holes
+  holes.forEach((pos, i) => {
+    if (i === 0 || i === holes.length - 1) return;
 
-  const label = document.createElement('div');
-  label.className = 'holeLabel';
-  const y = padding + pos * scale - 8;  // vertical offset for neatness
-  label.style.top = `${y}px`;
-  label.style.left = '24px'; // right side of the spine
+    const label = document.createElement('div');
+    label.className = 'holeLabel';
+    const y = padding + pos * scale - 8;
+    label.style.top = `${y}px`;
+    label.style.left = '24px';
 
-  const pairIndex = Math.floor((i - 1) / 2);
-  const pairNumber = pairIndex + 1;
-  const partNumber = (i % 2 === 1) ? 1 : 2;
-  label.textContent = `Link ${pairNumber}.${partNumber}`;
-  label.style.color = pairColors[pairIndex % pairColors.length];
+    const pairIndex = Math.floor((i - 1) / 2);
+    const pairNumber = pairIndex + 1;
+    const partNumber = (i % 2 === 1) ? 1 : 2;
+    label.textContent = `Link ${pairNumber}.${partNumber}`;
+    label.style.color = pairColors[pairIndex % pairColors.length];
 
-  visualGuide.appendChild(label);
-});
-
+    visualGuide.appendChild(label);
+  });
 
   // Show download button if printable
   const A4_PORTRAIT_USABLE = 237;
@@ -282,10 +411,13 @@ holes.forEach((pos, i) => {
 }
 
 function downloadPDF() {
-  if (!holes || holes.length === 0) {
-    alert('Please calculate holes first!');
-    return;
-  }
+  const warningMessage = document.getElementById('warningMessage');
+warningMessage.textContent = '';
+
+if (!holes || holes.length === 0) {
+  warningMessage.textContent = 'Please calculate holes first!';
+  return;
+}
 
   const { jsPDF } = window.jspdf;
 
@@ -298,10 +430,9 @@ function downloadPDF() {
   } else if (spineLengthGlobal <= A4_PORTRAIT_USABLE) {
     orientation = 'portrait';
   } else {
-    alert('Spine too long for single-page A4 printout.');
-    return;
-  }
-
+     warningMessage.textContent = 'Spine too long for single-page A4 printout.';
+  return;
+}
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: orientation });
   drawSpine(pdf, orientation);
 }
@@ -449,6 +580,128 @@ offsetY += 5;
 document.getElementById('spineLength').addEventListener('input', updatePrintOptions);
 
 updatePrintOptions();
+updateSpacingInputs();
+
+function estimateLinks() {
+  const spineLength = parseFloat(document.getElementById('spineLength').value);
+  const minStart = parseFloat(document.getElementById('minStart').value);
+  const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
+  const warningMessage = document.getElementById('warningMessage');
+  warningMessage.textContent = ''; // Clear previous warning
+
+  if (isNaN(spineLength) || spineLength <= 0 || isNaN(minStart) || minStart <= 0) {
+    warningMessage.textContent = 'Please enter valid spine length and kettle stitch distance.';
+    return;
+  }
+
+  const usableLength = spineLength - 2 * minStart;
+  if (usableLength <= 0) {
+    warningMessage.textContent = 'Kettle stitch distance too large for spine length.';
+    return;
+  }
+
+  let linkGap = 20; // default spacing
+  if (spacingMode === 'thread') {
+    const threadWidth = parseFloat(document.getElementById('threadWidth').value);
+    if (isNaN(threadWidth) || threadWidth <= 5) {
+      warningMessage.textContent = 'Please enter a valid thread width.';
+      return;
+    }
+    linkGap = threadWidth + 2;
+  } else if (spacingMode === 'custom') {
+    const customGap = parseFloat(document.getElementById('customSpacing').value);
+    if (isNaN(customGap) || customGap <= 5) {
+      warningMessage.textContent = 'Please enter a valid custom spacing.';
+      return;
+    }
+    linkGap = customGap;
+  }
+
+  // Calculate max pairs so spacing between pairs >= linkGap
+  const maxPairs = usableLength > linkGap 
+    ? Math.floor((usableLength - linkGap) / (2 * linkGap)) 
+    : 0;
+
+  if (linkAdjustment === 0) {
+    estimatedPairs = maxPairs > 0 ? maxPairs : 1;
+  }
+  // Update display with adjusted pairs
+  const displayPairs = estimatedPairs + linkAdjustment;
+  document.getElementById('estimatedPairsDisplay').textContent = displayPairs;
+  document.getElementById('pairAdjustmentDisplay').textContent = linkAdjustment.toString();
+
+  calculateAndDraw(displayPairs);
+}
+
+// Add live update event listeners at the end of your script
+
+const inputs = [
+  'spineLength',
+  'minStart',
+  'threadWidth',
+  'customSpacing',
+  'pairCount'
+];
+
+inputs.forEach(id => {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener('input', updateAll);
+  }
+});
+
+document.querySelectorAll('input[name="spacingMode"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    updateSpacingInputs();
+    updateAll();
+  });
+});
+
+// The updateAll function to run estimate and draw
+let debounceTimer;
+let estimatedPairs = 4;
+let linkAdjustment = 0;
+
+function adjustpairCount(change) {
+  linkAdjustment += change;
+  // Clamp linkAdjustment so pairs never go below 1
+  if (linkAdjustment < 1 - estimatedPairs) {
+    linkAdjustment = 1 - estimatedPairs;
+  }
+  const adjusted = estimatedPairs + linkAdjustment;
+
+  document.getElementById('pairAdjustmentDisplay').textContent = linkAdjustment;
+  document.getElementById('estimatedPairsDisplay').textContent = adjusted;
+
+  calculateAndDraw(adjusted);
+}
+
+function enforceMinValue(id, minValue) {
+  const input = document.getElementById(id);
+  let val = parseFloat(input.value);
+  if (!isNaN(val) && val < minValue) {
+    input.value = minValue;
+  }
+}
+
+function updateAll() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    enforceMinValue('threadWidth', 5);
+    enforceMinValue('customSpacing', 5);
+    estimateLinks();
+    updatePrintOptions();
+  }, 200);
+}
+
+window.addEventListener('load', () => {
+  updateSpacingInputs();
+  estimateLinks();
+  updatePrintOptions();
+  document.getElementById('pairAdjustmentDisplay').textContent = '0';
+  document.getElementById('estimatedPairsDisplay').textContent = estimatedPairs;
+});
+
 </script>
 
 </body>
