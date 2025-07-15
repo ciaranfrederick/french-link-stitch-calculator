@@ -179,7 +179,7 @@
 
 <h1>French Link Stitch Hole Calculator</h1>
 <div style="font-size: 0.9em; color: #666; margin-bottom: 20px;">
-  Version: 2.0.2
+  Version: 2.1.2
 </div>
 
 
@@ -733,19 +733,9 @@ function adjustpairCount(change) {
   calculateAndDraw(adjusted);
 }
 
-function enforceMinValue(id, minValue) {
-  const input = document.getElementById(id);
-  let val = parseFloat(input.value);
-  if (!isNaN(val) && val < minValue) {
-    input.value = minValue;
-  }
-}
-
 function updateAll() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    enforceMinValue('threadWidth', 5);
-    enforceMinValue('customSpacing', 5);
     estimateLinks();
     updatePrintOptions();
   }, 200);
