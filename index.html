@@ -292,7 +292,11 @@ function updateSpacingInputs() {
   const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
   document.getElementById('threadSpacingOptions').style.display = spacingMode === 'thread' ? 'block' : 'none';
   document.getElementById('customSpacingOptions').style.display = spacingMode === 'custom' ? 'block' : 'none';
+
+  // Force recalculation right after changing mode
+  updateAll();
 }
+
 
 function updatePrintOptions() {
   const spineLengthInput = document.getElementById('spineLength');
