@@ -493,12 +493,19 @@ if (interPairGap < linkGap) {
 
 function downloadPDF() {
   const warningMessage = document.getElementById('warningMessage');
-warningMessage.textContent = '';
+  warningMessage.textContent = '';
 
-if (!holes || holes.length === 0) {
-  warningMessage.textContent = 'Please calculate holes first!';
-  return;
-}
+  if (!holes || holes.length === 0) {
+    warningMessage.textContent = 'Please calculate holes first!';
+    return;
+  }
+
+  const spineLength = Math.round(spineLengthGlobal); // e.g. 210
+  const topKettle = holes[0]; // first hole (top kettle)
+  const bottomKettle = holes[holes.length - 1]; // last hole (bottom kettle)
+  const linkPairs = (holes.length - 2) / 2; // total pairs (excluding kettles)
+
+  const fileName = `FLStitch_${spineLength}mm_top${topKettle}mm_bot${bottomKettle}mm_${linkPairs}pairs.pdf`;
 
   const { jsPDF } = window.jspdf;
 
@@ -511,27 +518,32 @@ if (!holes || holes.length === 0) {
   } else if (spineLengthGlobal <= A4_PORTRAIT_USABLE) {
     orientation = 'portrait';
   } else {
-     warningMessage.textContent = 'Spine too long for single-page A4 printout.';
-  return;
-}
+    warningMessage.textContent = 'Spine too long for single-page A4 printout.';
+    return;
+  }
+
   const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: orientation });
-  drawSpine(pdf, orientation);
+
+  // Pass the variables to drawSpine
+  drawSpine(pdf, orientation, topKettle, bottomKettle, linkPairs);
+
+  // Save PDF with the desired filename
+  pdf.save(fileName);
 }
 
-function drawSpine(pdf, orientation) {
+function drawSpine(pdf, orientation, topKettle, bottomKettle, linkPairs) {
   const MARGIN_TOP_BOTTOM = 30; // mm margins top and bottom
   const pageWidth = pdf.internal.pageSize.getWidth();
   const pageHeight = pdf.internal.pageSize.getHeight();
 
   if (orientation === 'landscape') {
-    // Corrected: Spine centered horizontally on page width (long edge)
     const usableHeight = pageWidth - MARGIN_TOP_BOTTOM * 2;
     let scaleFactor = 1;
     if (spineLengthGlobal > usableHeight) {
       scaleFactor = usableHeight / spineLengthGlobal;
     }
 
-    const spineX = pageWidth / 2;  // <-- Fixed this line
+    const spineX = pageWidth / 2;
     const spineStartY = MARGIN_TOP_BOTTOM;
     const spineEndY = MARGIN_TOP_BOTTOM + spineLengthGlobal * scaleFactor;
 
@@ -574,11 +586,11 @@ function drawSpine(pdf, orientation) {
 
     let offsetY = 28;
 
-// Add small heading
-pdf.setFontSize(8);
-pdf.setTextColor(100); // subtle grey
-pdf.text('Hole positions (mm from top edge):', 20, offsetY);
-offsetY += 5;
+    // Add small heading
+    pdf.setFontSize(8);
+    pdf.setTextColor(100); // subtle grey
+    pdf.text('Hole positions (mm from top edge):', 20, offsetY);
+    offsetY += 5;
 
     pdf.setFontSize(9);
     holes.forEach((pos, index) => {
@@ -589,7 +601,7 @@ offsetY += 5;
       offsetY += 5;
     });
   } else {
-    // Portrait mode: vertical spine
+    // Portrait mode: similar to above but vertical layout
     const usableHeight = pageHeight - MARGIN_TOP_BOTTOM * 2;
     let scaleFactor = 1;
     if (spineLengthGlobal > usableHeight) {
@@ -639,11 +651,11 @@ offsetY += 5;
 
     let offsetY = 28;
 
-// Add small heading
-pdf.setFontSize(8);
-pdf.setTextColor(100); // subtle grey
-pdf.text('Hole positions (mm from top edge):', 20, offsetY);
-offsetY += 5;
+    // Add small heading
+    pdf.setFontSize(8);
+    pdf.setTextColor(100); // subtle grey
+    pdf.text('Hole positions (mm from top edge):', 20, offsetY);
+    offsetY += 5;
 
     pdf.setFontSize(9);
     holes.forEach((pos, index) => {
@@ -654,9 +666,8 @@ offsetY += 5;
       offsetY += 5;
     });
   }
-
-  pdf.save(`french_link_stitch_template_${orientation}.pdf`);
 }
+
 
 document.getElementById('spineLength').addEventListener('input', updatePrintOptions);
 
