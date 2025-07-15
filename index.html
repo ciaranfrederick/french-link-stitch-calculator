@@ -346,14 +346,14 @@ let linkGap = 20;
 const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
 
 if (spacingMode === 'thread') {
-  if (!isNaN(threadWidth) && threadWidth > 5) {
+  if (!isNaN(threadWidth) && threadWidth > 1) {
     linkGap = threadWidth + 2;
   } else {
     warningMessage.textContent = "Please enter a valid thread width.";
     return;
   }
 } else if (spacingMode === 'custom') {
-  if (!isNaN(customGap) && customGap > 5) {
+  if (!isNaN(customGap) && customGap > 1) {
     linkGap = customGap;
   } else {
     warningMessage.textContent = "Please enter a valid custom spacing.";
