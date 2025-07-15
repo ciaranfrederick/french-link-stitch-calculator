@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>French Link Stitch Hole Calculator</title>
 <style>
   body {
@@ -122,13 +123,63 @@
     color: #B22222;
     margin-top: 6px;
   }
+@media (max-width: 480px) {
+  body {
+    margin: 15px;
+    padding: 0.8em;
+  }
+
+  h1 {
+    font-size: 1.5em;
+  }
+
+  label, legend {
+    font-size: 1em;
+  }
+
+  input[type=number], button {
+    font-size: 1.2em;
+    padding: 12px;
+  }
+
+  button {
+    width: 100%;
+  }
+
+  fieldset {
+    padding: 10px;
+  }
+
+  #visualGuide {
+    width: 6px;
+    height: 400px;
+  }
+
+  .hole.kettle {
+    width: 18px;
+    height: 18px;
+    margin-top: -9px;
+  }
+
+  .hole.link {
+    width: 12px;
+    height: 12px;
+    margin-top: -6px;
+  }
+
+  .holeLabel {
+    font-size: 11px;
+    left: 18px !important;
+  }
+}
+
 </style>
 </head>
 <body>
 
 <h1>French Link Stitch Hole Calculator</h1>
 <div style="font-size: 0.9em; color: #666; margin-bottom: 20px;">
-  Version: 2.0.1
+  Version: 2.0.2
 </div>
 
 
