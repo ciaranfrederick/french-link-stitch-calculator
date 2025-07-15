@@ -287,6 +287,8 @@ const APP_VERSION = '2.0.0';
 
 let holes = [];
 let spineLengthGlobal = 0;
+let estimatedPairs = 4;
+let linkAdjustment = 0;
 
 function updateSpacingInputs() {
   const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
@@ -720,8 +722,6 @@ document.querySelectorAll('input[name="spacingMode"]').forEach(radio => {
 
 // The updateAll function to run estimate and draw
 let debounceTimer;
-let estimatedPairs = 4;
-let linkAdjustment = 0;
 
 function adjustpairCount(change) {
   linkAdjustment += change;
