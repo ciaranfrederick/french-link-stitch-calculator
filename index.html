@@ -179,7 +179,7 @@
 
 <h1>French Link Stitch Hole Calculator</h1>
 <div style="font-size: 0.9em; color: #666; margin-bottom: 20px;">
-  Version: 2.1.2
+  Version: 2.0.2
 </div>
 
 
@@ -224,12 +224,12 @@
 
 <div id="threadSpacingOptions" style="display:none;">
   <label for="threadWidth">Thread width (mm):</label>
-  <input type="number" id="threadWidth" min="1" step="0.1" value="1" />
+  <input type="number" id="threadWidth" min="5" step="0.1" value="1" />
 </div>
 
 <div id="customSpacingOptions" style="display:none;">
   <label for="customSpacing">Custom link spacing (mm):</label>
-  <input type="number" id="customSpacing" min="1" step="0.1" value="20" />
+  <input type="number" id="customSpacing" min="5" step="0.1" value="20" />
 </div>
 </div>
 
@@ -287,18 +287,12 @@ const APP_VERSION = '2.0.0';
 
 let holes = [];
 let spineLengthGlobal = 0;
-let estimatedPairs = 4;
-let linkAdjustment = 0;
 
 function updateSpacingInputs() {
   const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
   document.getElementById('threadSpacingOptions').style.display = spacingMode === 'thread' ? 'block' : 'none';
   document.getElementById('customSpacingOptions').style.display = spacingMode === 'custom' ? 'block' : 'none';
-
-  // Force recalculation right after changing mode
-  updateAll();
 }
-
 
 function updatePrintOptions() {
   const spineLengthInput = document.getElementById('spineLength');
@@ -352,14 +346,14 @@ let linkGap = 20;
 const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
 
 if (spacingMode === 'thread') {
-  if (!isNaN(threadWidth) && threadWidth >= 1) {
+  if (!isNaN(threadWidth) && threadWidth > 5) {
     linkGap = threadWidth + 2;
   } else {
     warningMessage.textContent = "Please enter a valid thread width.";
     return;
   }
 } else if (spacingMode === 'custom') {
-  if (!isNaN(customGap) && customGap >= 1) {
+  if (!isNaN(customGap) && customGap > 5) {
     linkGap = customGap;
   } else {
     warningMessage.textContent = "Please enter a valid custom spacing.";
@@ -666,14 +660,14 @@ function estimateLinks() {
   let linkGap = 20; // default spacing
   if (spacingMode === 'thread') {
     const threadWidth = parseFloat(document.getElementById('threadWidth').value);
-    if (isNaN(threadWidth) || threadWidth <= 1) {
+    if (isNaN(threadWidth) || threadWidth <= 5) {
       warningMessage.textContent = 'Please enter a valid thread width.';
       return;
     }
     linkGap = threadWidth + 2;
   } else if (spacingMode === 'custom') {
     const customGap = parseFloat(document.getElementById('customSpacing').value);
-    if (isNaN(customGap) || customGap <= 1) {
+    if (isNaN(customGap) || customGap <= 5) {
       warningMessage.textContent = 'Please enter a valid custom spacing.';
       return;
     }
@@ -722,6 +716,8 @@ document.querySelectorAll('input[name="spacingMode"]').forEach(radio => {
 
 // The updateAll function to run estimate and draw
 let debounceTimer;
+let estimatedPairs = 4;
+let linkAdjustment = 0;
 
 function adjustpairCount(change) {
   linkAdjustment += change;
@@ -737,9 +733,19 @@ function adjustpairCount(change) {
   calculateAndDraw(adjusted);
 }
 
+function enforceMinValue(id, minValue) {
+  const input = document.getElementById(id);
+  let val = parseFloat(input.value);
+  if (!isNaN(val) && val < minValue) {
+    input.value = minValue;
+  }
+}
+
 function updateAll() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
+    enforceMinValue('threadWidth', 5);
+    enforceMinValue('customSpacing', 5);
     estimateLinks();
     updatePrintOptions();
   }, 200);
