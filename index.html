@@ -179,7 +179,7 @@
 
 <h1>French Link Stitch Hole Calculator</h1>
 <div style="font-size: 0.9em; color: #666; margin-bottom: 20px;">
-  Version: 2.0.2
+  Version: 2.2.1
 </div>
 
 
@@ -190,8 +190,15 @@
   <label for="spineLength">Spine length (mm):</label>
   <input type="number" id="spineLength" min="10" step="0.1" value="210" />
 
-  <label for="minStart">Kettle stitch distance from edge (mm):</label>
+  <fieldset style="margin-top: 12px;">
+  <legend><strong>Kettle stitch positions:</strong></legend>
+
+  <label for="minStart">Top distance from edge (mm):</label>
   <input type="number" id="minStart" min="1" step="0.1" value="20" />
+
+  <label for="minEnd" style="margin-top: 8px;">Bottom distance from edge (mm):</label>
+  <input type="number" id="minEnd" min="1" step="0.1" value="20" />
+</fieldset>
 
 <fieldset style="margin-top: 12px;">
   <legend><strong>Link size:</strong></legend>
@@ -342,15 +349,19 @@ const customGap = parseFloat(document.getElementById('customSpacing').value);
 
   const spineLength = parseFloat(document.getElementById('spineLength').value);
   const minStart = parseFloat(document.getElementById('minStart').value);
+  const minEnd = parseFloat(document.getElementById('minEnd').value);
   const warningMessage = document.getElementById('warningMessage');
   warningMessage.textContent = '';
 
   const pairCount = pairCountOverride !== null ? pairCountOverride : Math.max(1, estimatedPairs + linkAdjustment);
 
 if (
-  isNaN(spineLength) || isNaN(pairCount) || isNaN(minStart) ||
-  spineLength <= 0 || pairCount < 1 || minStart <= 0
+  isNaN(spineLength) || isNaN(pairCount) ||
+  isNaN(minStart) || isNaN(minEnd) ||
+  spineLength <= 0 || pairCount < 1 ||
+  minStart <= 0 || minEnd <= 0
 ) {
+
   warningMessage.textContent = 'Please enter valid positive numbers.';
   return;
 }
@@ -374,7 +385,7 @@ if (spacingMode === 'thread') {
   }
 }
 
-  const usableLength = spineLength - 2 * minStart;
+  const usableLength = spineLength - minStart - minEnd;
 const totalLinkSpacing = pairCount * linkGap;
 const segmentsBetween = pairCount + 1;
 const interPairGap = (usableLength - totalLinkSpacing) / segmentsBetween;
@@ -400,7 +411,7 @@ if (interPairGap < linkGap) {
     pos += interPairGap;
   }
 
-  holesList.push(Math.round(spineLength - minStart)); // Bottom kettle
+  holesList.push(Math.round(spineLength - minEnd)); // Bottom kettle
 
   holes = holesList;
   spineLengthGlobal = spineLength;
@@ -655,16 +666,22 @@ updateSpacingInputs();
 function estimateLinks() {
   const spineLength = parseFloat(document.getElementById('spineLength').value);
   const minStart = parseFloat(document.getElementById('minStart').value);
+  const minEnd = parseFloat(document.getElementById('minEnd').value);
   const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
   const warningMessage = document.getElementById('warningMessage');
   warningMessage.textContent = ''; // Clear previous warning
 
-  if (isNaN(spineLength) || spineLength <= 0 || isNaN(minStart) || minStart <= 0) {
+ if (
+  isNaN(spineLength) || spineLength <= 0 ||
+  isNaN(minStart) || minStart <= 0 ||
+  isNaN(minEnd) || minEnd <= 0
+) {
+
     warningMessage.textContent = 'Please enter valid spine length and kettle stitch distance.';
     return;
   }
 
-  const usableLength = spineLength - 2 * minStart;
+  const usableLength = spineLength - minStart - minEnd;
   if (usableLength <= 0) {
     warningMessage.textContent = 'Kettle stitch distance too large for spine length.';
     return;
@@ -708,6 +725,7 @@ function estimateLinks() {
 const inputs = [
   'spineLength',
   'minStart',
+  'minEnd',
   'threadWidth',
   'customSpacing',
   'pairCount'
