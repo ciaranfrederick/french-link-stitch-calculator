@@ -346,14 +346,14 @@ let linkGap = 20;
 const spacingMode = document.querySelector('input[name="spacingMode"]:checked').value;
 
 if (spacingMode === 'thread') {
-  if (!isNaN(threadWidth) && threadWidth > 1) {
+  if (!isNaN(threadWidth) && threadWidth >= 1) {
     linkGap = threadWidth + 2;
   } else {
     warningMessage.textContent = "Please enter a valid thread width.";
     return;
   }
 } else if (spacingMode === 'custom') {
-  if (!isNaN(customGap) && customGap > 1) {
+  if (!isNaN(customGap) && customGap >= 1) {
     linkGap = customGap;
   } else {
     warningMessage.textContent = "Please enter a valid custom spacing.";
@@ -660,14 +660,14 @@ function estimateLinks() {
   let linkGap = 20; // default spacing
   if (spacingMode === 'thread') {
     const threadWidth = parseFloat(document.getElementById('threadWidth').value);
-    if (isNaN(threadWidth) || threadWidth <= 5) {
+    if (isNaN(threadWidth) || threadWidth <= 1) {
       warningMessage.textContent = 'Please enter a valid thread width.';
       return;
     }
     linkGap = threadWidth + 2;
   } else if (spacingMode === 'custom') {
     const customGap = parseFloat(document.getElementById('customSpacing').value);
-    if (isNaN(customGap) || customGap <= 5) {
+    if (isNaN(customGap) || customGap <= 1) {
       warningMessage.textContent = 'Please enter a valid custom spacing.';
       return;
     }
