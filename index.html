@@ -543,7 +543,7 @@ function drawSpine(pdf, orientation, topKettle, bottomKettle, linkPairs) {
       scaleFactor = usableHeight / spineLengthGlobal;
     }
 
-    const spineX = pageWidth / 2;
+   const spineX = Math.round(pageWidth / 2);
     const spineStartY = MARGIN_TOP_BOTTOM;
     const spineEndY = MARGIN_TOP_BOTTOM + spineLengthGlobal * scaleFactor;
 
